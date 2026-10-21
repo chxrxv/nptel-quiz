@@ -882,7 +882,7 @@ function viewPlay() {
       <div class="nav">
         <button class="btn" data-act="prev" ${s.idx === 0 ? 'disabled' : ''}>&larr; Previous</button>
         ${exam ? '<button class="btn" data-act="clear">Clear answer</button>' : ''}
-        ${!exam && !learn && !chk && q.type !== 'mcq' && q.type !== 'tf' ? '<button class="btn primary" data-act="check">Check answer</button><span class="small" id="chkmsg" role="alert">Answer, then press Check answer.</span>' : ''}
+        ${!exam && !learn && !chk && q.type !== 'mcq' && q.type !== 'tf' ? '<button class="btn primary" data-act="check">Check answer</button>' + (q.type !== 'short' ? '<button class="btn" data-act="giveup">Show answer</button>' : '') + '<span class="small" id="chkmsg" role="alert">Answer, then press Check answer.</span>' : ''}
         <span class="spacer"></span>
         ${last ? (exam ? '<button class="btn primary" data-act="review-submit">Review &amp; submit</button>' : learn ? '<button class="btn primary" data-act="exit">Done</button>' : '<button class="btn primary" data-act="finish-practice">Finish &amp; results</button>') : '<button class="btn primary" data-act="next">Next &rarr;</button>'}
       </div>
@@ -1248,6 +1248,9 @@ async function onClick(e) {
     case 'bookmark': { const r = OB.R(curQ().id); r.bm = r.bm ? 0 : 1; OB.save(); render(); break; }
     case 'needrev': { const r = OB.R(curQ().id); r.fl = r.fl ? 0 : 1; OB.save(); render(); break; }
     case 'clear': delete sess.ans[curQ().id]; afterAnswer(); break;
+    case 'giveup': { // reveal the answer; counts as an incorrect attempt so it comes back for revision
+      const id = curQ().id; if (!sess.checked[id]) { sess.checked[id] = { st: 'w', m: 0 }; if (!sess.applied[id]) { OB.recordAttempt(id, false, OB.isAnswered(sess.ans[id]) ? sess.ans[id] : null); sess.applied[id] = 1; } OB.save(); }
+      autoWait = true; render(); scheduleAdvance(10000); break; }
     case 'check': { const id = curQ().id; if (!OB.isAnswered(sess.ans[id])) { const m = $('#chkmsg'); if (m) m.textContent = 'Please select or type an answer first.'; break; } const g = OB.checkAnswer(sess, id); OB.save(); autoWait = g.st === 'w' || g.st === 'p'; render(); if (g.st === 'c') scheduleAdvance(600); else if (autoWait) scheduleAdvance(10000); break; }
     case 'saveRubric': {
       const checks = readChecks(el.closest('.rubric')); const id = d.id;
