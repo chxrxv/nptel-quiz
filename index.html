@@ -982,7 +982,7 @@ function viewHome() {
   const storage = !OB.storageOK ? '<div class="banner warn" role="alert">Your browser blocked local storage, so progress cannot be saved between sessions. Use Export progress regularly, or open this file in a normal (non-private) browser window.</div>' : '';
   app.innerHTML = `<section>
   ${flash ? `<div class="banner info" role="status">${esc(flash)}</div>` : ''}${storage}${resume}
-  <div class="hero"><h1>MBTL Organizational Behaviour Exam Simulator</h1>
+  <div class="hero"><h1>NPTEL Organizational Behaviour Quiz</h1>
    <p>NPTEL OB (Dr. M.P. Ganesh, IIT Hyderabad) - ${o.total} questions: ${OB.ASG.length} original assignment questions and ${OB.NEW.length} new questions. Works offline; progress is saved in this browser.</p></div>
   <div class="stages">
     <article class="stage rec"><span class="badge">Recommended first step</span><h2>1. Learn NPTEL Assignments</h2>
