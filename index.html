@@ -92,6 +92,12 @@ details.card>summary{cursor:pointer;list-style:none}.inl{display:inline;font-siz
 @media (max-width:900px){.stages,.grid4,.tiles3{grid-template-columns:1fr}.pgrid{grid-template-columns:1fr}.mrow{grid-template-columns:1fr}nav{margin-left:0}.qtext{font-size:1.08rem}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+.burger{background:none;border:1px solid var(--line);color:var(--ink);font-size:1.4rem;line-height:1;padding:4px 12px;border-radius:9px;cursor:pointer}
+.hwrap{padding:6px 16px}
+#hdr nav{position:absolute;left:12px;top:100%;margin:4px 0 0;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;min-width:230px;box-shadow:0 8px 28px rgba(0,0,0,.35);z-index:20}
+#hdr nav .navb{text-align:left;padding:10px 14px}
+#hdr{position:sticky}
+
 </style>
 </head>
 <body>
@@ -959,11 +965,12 @@ const pf = { cats: ['newA', 'newB'], topics: [], diffs: [], types: [], status: '
 const rf = { src: '', scope: 'all', topic: '', week: '', n: 20 };
 
 function navBtn(name, label, cls) { return `<button class="btn ${cls || ''}" data-go="${name}">${label}</button>`; }
+let menuOpen = false;
 function renderHeader() {
   const h = $('#hdr'); if (!h) return;
-  const inPlay = view.name === 'play' && sess;
-  const items = [['home', 'Home'], ['assign', '1. Assignments'], ['practice', '2. New questions'], ['mock', '3. Mock exam'], ['retry', 'Wrong answers'], ['progress', 'Progress'], ['revision', 'Revision'], ['settings', 'Backup & settings']];
-  h.innerHTML = `<div class="hwrap"><a class="brand" href="#/home" data-go="home">NPTEL Organizational Behaviour <span>Exam Simulator</span></a>${inPlay ? '<span class="small">Session in progress</span>' : `<nav aria-label="Main">${items.map(([n, l]) => `<button class="navb ${view.name === n || (n === 'assign' && view.name === 'asgweek') ? 'on' : ''}" data-go="${n}">${l}</button>`).join('')}</nav>`}</div>`;
+  const items = [['home', 'Home'], ['assign', '1. Assignments'], ['practice', '2. New questions'], ['mock', '3. Mock exam'], ['retry', 'Wrong answers'], ['bookmarks', 'Bookmarks'], ['progress', 'Progress'], ['revision', 'Revision'], ['settings', 'Backup & settings']];
+  h.innerHTML = `<div class="hwrap"><button class="burger" data-act="menu" aria-label="Menu" aria-expanded="${menuOpen}" aria-controls="menupanel">&#9776;</button><a class="brand" href="#/home" data-go="home">nptel <span>OB quiz</span></a></div>
+  ${menuOpen ? `<nav id="menupanel" aria-label="Main">${items.map(([n, l]) => `<button class="navb ${view.name === n || (n === 'assign' && view.name === 'asgweek') ? 'on' : ''}" data-go="${n}">${esc(l)}</button>`).join('')}</nav>` : ''}`;
 }
 
 /* ---------- home ---------- */
@@ -1186,12 +1193,13 @@ function scheduleAdvance(ms) {
 }
 async function onClick(e) {
   const goBtn = e.target.closest('[data-go]');
-  if (goBtn) { e.preventDefault(); if (view.name === 'play' && sess && sess.mode === 'exam') OB.save(); go(goBtn.dataset.go); return; }
+  if (goBtn) { menuOpen = false; e.preventDefault(); if (view.name === 'play' && sess && sess.mode === 'exam') OB.save(); go(goBtn.dataset.go); return; }
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act; const d = el.dataset;
   if (act !== 'pick') cancelAuto();
   if (act === 'stay') { render(); return; }
   switch (act) {
+    case 'menu': menuOpen = !menuOpen; renderHeader(); break;
     case 'pick': {
       if (el.dataset.locked) return; const q = curQ(); const i = +d.i;
       if (sess.mode === 'practice' && (q.type === 'mcq' || q.type === 'tf') && !sess.checked[q.id]) {
