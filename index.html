@@ -644,6 +644,7 @@ let view = { name: 'home' };
 let sess = null;
 let suppressHash = false;
 let flash = '';
+let mainSess = null;
 let autoT = null, autoI = null, autoWait = false;
 function cancelAuto() { clearTimeout(autoT); clearInterval(autoI); autoT = autoI = null; autoWait = false; }
 
@@ -707,6 +708,7 @@ function startSession(o) {
   go('play');
 }
 function exitSession() {
+  if (sess && sess.sub) { sess = mainSess; mainSess = null; }
   // pause: keep S.current so it can be resumed (exam/practice); learn sessions are discarded
   if (sess && sess.mode === 'learn') { S().current = null; sess = null; OB.save(); }
   else OB.save();
@@ -714,6 +716,7 @@ function exitSession() {
 }
 function discardSession() { sess = null; S().current = null; OB.save(); }
 async function submitSession(auto) {
+  if (sess.sub) { finishSub(); return; }
   const kind = sess.kind, wk = sess.week;
   const test = OB.finishSession(sess);
   OB.save(); sess = null;
@@ -870,6 +873,7 @@ function viewPlay() {
    <div class="progress"><div class="bar thin" role="progressbar" aria-valuemin="1" aria-valuemax="${s.qids.length}" aria-valuenow="${s.idx + 1}" aria-label="Question progress"><i style="width:${prog * 100}%"></i></div><span class="small">Question ${s.idx + 1} of ${s.qids.length}</span></div>
    <div class="pgrid">
     <div class="qcard">
+      ${flash ? `<div class="banner info" role="status">${esc(flash)}</div>` : ''}
       <div class="qmeta"><span class="pill ${q.type === 'msq' ? 'pill-multi' : ''}">${esc(OB.qtypeLabel(q))}</span>${q.src === 'asg' ? `<span class="pill">${esc(weekLabel(q.week))} ${q.kind === 'G' ? 'graded' : q.kind === 'N' ? 'practice' : ''}</span>` : ''}${q.src === 'asg' && !q.official && !exam ? '<span class="pill warn">unofficial key</span>' : ''}<span class="spacer"></span>
         <button class="btn sm ${s.marked[id] ? 'active' : ''}" data-act="mark" aria-pressed="${!!s.marked[id]}">&#9873; Mark for review</button>
         <button class="btn sm ${rc.bm ? 'active' : ''}" data-act="bookmark" aria-pressed="${!!rc.bm}">&#9733; Bookmark</button>
@@ -894,11 +898,25 @@ function viewPlay() {
 }
 function advance() {
   // move to next question; in practice mode pause for a checkpoint after every 10 questions
+  if (sess.sub && sess.idx >= sess.qids.length - 1) { finishSub(); return true; }
   if (sess.idx >= sess.qids.length - 1) return false;
   sess.idx++;
-  if (sess.mode === 'practice' && sess.idx % 10 === 0) sess.cp = true;
+  if (sess.mode === 'practice' && !sess.sub && sess.idx % 10 === 0) sess.cp = true;
   OB.save(); render(); window.scrollTo(0, 0);
   return true;
+}
+function startReask(ids) {
+  if (!mainSess) mainSess = sess;
+  sess = OB.newSession({ kind: 'retry', label: 'Re-asking your mistakes', mode: 'practice', qids: OB.shuffle(ids), partial: S().settings.partial });
+  sess.sub = true;
+  go('play');
+}
+function finishSub() {
+  const still = sess.qids.filter(id => !(sess.checked[id] && sess.checked[id].st === 'c'));
+  if (still.length) { toast(still.length + ' still wrong - asking them again until you get them right.'); startReask(still); return; }
+  sess = mainSess; mainSess = null; sess.cp = false; OB.save();
+  toast('All mistakes from that block answered correctly - back to the quiz.');
+  go('play');
 }
 function viewCheckpoint() {
   const s = sess, end = s.idx, start = end - 10;
@@ -912,7 +930,7 @@ function viewCheckpoint() {
    <div class="stats"><div><b>${c}</b>Correct (last 10)</div><div><b>${w}</b>Wrong (last 10)</div><div><b>${u}</b>Skipped</div></div>
    <p>So far: <b>${tc}</b> correct, <b>${tw}</b> wrong${end ? ' (' + Math.round(tc / Math.max(1, tc + tw) * 100) + '% accuracy)' : ''}. Wrong answers are already saved to your wrong-answer list.</p>
    ${(() => { const bad = s.qids.slice(start, end).filter(id => s.checked[id] && (s.checked[id].st === 'w' || s.checked[id].st === 'p')); if (!bad.length) return '<div class="banner good">No mistakes in the last 10 - nice.</div>'; return '<h2>Review your ' + bad.length + ' mistake(s)</h2><p class="small">Read each one, then continue when ready. They stay in your wrong-answer list until you answer them correctly twice.</p>' + bad.map(id => { const q = Q[id]; return `<details class="qrow st-w" open><summary><span class="qs">${esc(q.q)}</span></summary><div class="qbody">${q.type === 'fill' || q.type === 'short' ? '<p><b>Your answer:</b> ' + esc(s.ans[id] || '') + '</p>' : optionsHtml(q, s, true)}${explainHtml(q)}</div></details>`; }).join(''); })()}
-   <div class="row"><button class="btn primary lg" data-act="cp-continue">Continue (next 10)</button><button class="btn" data-act="finish-practice">Finish &amp; see results</button><button class="btn" data-act="exit">Take a break (saved)</button></div></section>`;
+   <div class="row">${(() => { const bad = s.qids.slice(start, end).filter(id => s.checked[id] && (s.checked[id].st === 'w' || s.checked[id].st === 'p')); return bad.length ? `<button class="btn primary lg" data-act="cp-reask" data-ids="${bad.join(',')}">Re-ask my ${bad.length} mistake(s) now</button>` : ''; })()}<button class="btn lg" data-act="cp-continue">Continue (next 10)</button><button class="btn" data-act="finish-practice">Finish &amp; see results</button><button class="btn" data-act="exit">Take a break (saved)</button></div></section>`;
 }
 function viewConfirm() {
   const s = sess;
@@ -1195,6 +1213,7 @@ function render() {
   if (view.name === 'play' && !sess) view = { name: 'home' };
   renderHeader();
   (VIEWS[view.name] || viewHome)();
+  if (view.name === 'play') flash = '';
   const t = $('#timer'); if (t && sess && sess.endsAt) tickTimer();
 }
 function tickTimer() {
@@ -1243,6 +1262,7 @@ async function onClick(e) {
     case 'goto': sess.cp = false; sess.idx = +d.i; OB.save(); render(); break;
     case 'prev': if (sess.idx > 0) { sess.idx--; OB.save(); render(); window.scrollTo(0, 0); } break;
     case 'next': advance(); break;
+    case 'cp-reask': startReask(d.ids.split(',')); break;
     case 'cp-continue': sess.cp = false; OB.save(); render(); break;
     case 'mark': { const id = curQ().id; if (sess.marked[id]) delete sess.marked[id]; else sess.marked[id] = 1; OB.save(); render(); break; }
     case 'bookmark': { const r = OB.R(curQ().id); r.bm = r.bm ? 0 : 1; OB.save(); render(); break; }
