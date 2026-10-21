@@ -705,10 +705,17 @@ function exitSession() {
   go(sess ? 'home' : 'home');
 }
 function discardSession() { sess = null; S().current = null; OB.save(); }
-function submitSession(auto) {
+async function submitSession(auto) {
+  const kind = sess.kind, wk = sess.week;
   const test = OB.finishSession(sess);
   OB.save(); sess = null;
   go('results', { id: test.id, filter: 'all', auto: !!auto });
+  if ((kind === 'asgpractice' || kind === 'retry') && !auto) {
+    const ids = OB.retryList(kind === 'asgpractice' ? { week: wk } : {});
+    if (ids.length && await askConfirm(`You have <b>${ids.length}</b> mistake(s) still to master${kind === 'asgpractice' ? ' in this assignment' : ''}. Practise only those now?`, 'Practise my mistakes')) {
+      startPractice(ids, 'Mistakes only' + (kind === 'asgpractice' ? ': ' + weekLabel(wk) : ''), 'retry');
+    }
+  }
 }
 function startLearn(qids, startIdx, label) {
   startSession({ kind: 'learn', label: label || 'Learn mode', mode: 'learn', qids, startIdx: startIdx || 0 });
