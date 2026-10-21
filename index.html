@@ -636,6 +636,8 @@ let view = { name: 'home' };
 let sess = null;
 let suppressHash = false;
 let flash = '';
+let autoT = null, autoI = null, autoWait = false;
+function cancelAuto() { clearTimeout(autoT); clearInterval(autoI); autoT = autoI = null; autoWait = false; }
 
 const pct = (x, d) => (x == null ? '-' : (x * 100).toFixed(d == null ? 0 : d) + '%');
 const pct100 = (x, d) => (x == null ? '-' : x.toFixed(d == null ? 1 : d) + '%');
@@ -676,6 +678,7 @@ function askConfirm(msg, okLabel, danger) {
   });
 }
 function go(name, params) {
+  cancelAuto();
   view = Object.assign({ name }, params || {});
   const h = '#/' + name;
   if (location.hash !== h) { suppressHash = true; location.hash = h; }
@@ -852,13 +855,13 @@ function viewPlay() {
         ${learn ? `<button class="btn sm ${rc.fl ? 'active' : ''}" data-act="needrev" aria-pressed="${!!rc.fl}">Needs revision</button>` : ''}</div>
       <h2 class="qtext" id="qtext">${esc(q.q)}</h2>
       <p class="hint">${esc(hint(q))}</p>
-      ${resultBanner}
+      ${resultBanner}${autoWait && chk && chk.st !== 'c' ? '<p class="small">Next question in <b id="cd"></b> s &nbsp;<button class="linkbtn" data-act="stay">stay on this question</button></p>' : ''}
       <div id="opts">${optionsHtml(q, s, reveal)}</div>
       ${rub}
       <div class="nav">
         <button class="btn" data-act="prev" ${s.idx === 0 ? 'disabled' : ''}>&larr; Previous</button>
         ${exam ? '<button class="btn" data-act="clear">Clear answer</button>' : ''}
-        ${!exam && !learn && !chk ? '<button class="btn primary" data-act="check">Check answer</button><span class="small" id="chkmsg" role="alert">Answer, then press Check answer.</span>' : ''}
+        ${!exam && !learn && !chk && q.type !== 'mcq' && q.type !== 'tf' ? '<button class="btn primary" data-act="check">Check answer</button><span class="small" id="chkmsg" role="alert">Answer, then press Check answer.</span>' : ''}
         <span class="spacer"></span>
         ${last ? (exam ? '<button class="btn primary" data-act="review-submit">Review &amp; submit</button>' : learn ? '<button class="btn primary" data-act="exit">Done</button>' : '<button class="btn primary" data-act="finish-practice">Finish &amp; results</button>') : '<button class="btn primary" data-act="next">Next &rarr;</button>'}
       </div>
@@ -1163,14 +1166,31 @@ setInterval(tickTimer, 1000);
 function curQ() { return Q[sess.qids[sess.idx]]; }
 function afterAnswer() { OB.save(); render(); }
 function readChecks(root) { return Array.from(root.querySelectorAll('input[data-rub]')).map(i => i.checked); }
+function scheduleAdvance(ms) {
+  clearTimeout(autoT); clearInterval(autoI);
+  const end = Date.now() + ms;
+  const upd = () => { const e = $('#cd'); if (e) e.textContent = Math.max(0, Math.ceil((end - Date.now()) / 1000)); };
+  upd(); autoI = setInterval(upd, 250);
+  autoT = setTimeout(() => {
+    cancelAuto();
+    if (!sess || view.name !== 'play') return;
+    if (sess.idx < sess.qids.length - 1) { sess.idx++; OB.save(); render(); window.scrollTo(0, 0); } else submitSession(false);
+  }, ms);
+}
 async function onClick(e) {
   const goBtn = e.target.closest('[data-go]');
   if (goBtn) { e.preventDefault(); if (view.name === 'play' && sess && sess.mode === 'exam') OB.save(); go(goBtn.dataset.go); return; }
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act; const d = el.dataset;
+  if (act !== 'pick') cancelAuto();
+  if (act === 'stay') { render(); return; }
   switch (act) {
     case 'pick': {
       if (el.dataset.locked) return; const q = curQ(); const i = +d.i;
+      if (sess.mode === 'practice' && (q.type === 'mcq' || q.type === 'tf') && !sess.checked[q.id]) {
+        sess.ans[q.id] = i; const g = OB.checkAnswer(sess, q.id); OB.save();
+        autoWait = g.st !== 'c'; render(); scheduleAdvance(g.st === 'c' ? 900 : 10000); break;
+      }
       if (q.type === 'msq') { const a = Array.isArray(sess.ans[q.id]) ? sess.ans[q.id].slice() : []; const k = a.indexOf(i); if (k >= 0) a.splice(k, 1); else a.push(i); a.sort((x, y) => x - y); sess.ans[q.id] = a; }
       else sess.ans[q.id] = i;
       afterAnswer(); break;
