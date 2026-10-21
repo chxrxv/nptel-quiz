@@ -408,6 +408,17 @@ const OB = (function () {
       return { week: w, qs, total: qs.length, seen, mastered, correct, wrong, acc: a ? c / a : null, best: t ? t.best : null, last: t ? t.last : null, tests: t ? t.n : 0, passed: !!(t && t.best >= 90) };
     });
   }
+  function setStats() {
+    const mk = (id, title, qs) => {
+      let seen = 0, mastered = 0, wrong = 0, a = 0, c = 0;
+      qs.forEach(q => { const s = status(q.id); const r = S.q[q.id]; if (s !== 'new') seen++; if (s === 'mastered') mastered++; if (s === 'incorrect' || s === 'improving') wrong++; if (r) { a += r.a; c += r.c; } });
+      const t = S.asg['T_' + id];
+      return { id, title, qs, total: qs.length, seen, mastered, wrong, acc: a ? c / a : null, best: t ? t.best : null, tests: t ? t.n : 0, passed: !!(t && t.best >= 90) };
+    };
+    const out = [mk('all', 'All new questions', NEW)];
+    DATA.topics.forEach(t => out.push(mk(t.id, t.title, NEW.filter(q => q.topic === t.id))));
+    return out;
+  }
   function overall() {
     let attempted = 0, attempts = 0, correct = 0;
     Object.keys(S.q).forEach(id => { if (!Q[id]) return; const r = S.q[id]; if (r.a) { attempted++; attempts += r.a; correct += r.c; } });
@@ -464,6 +475,7 @@ const OB = (function () {
       if (f.status === 'unseen' && s !== 'new') return false;
       if (f.status === 'wrong' && !(s === 'incorrect' || s === 'improving')) return false;
       if (f.status === 'notmastered' && s === 'mastered') return false;
+      if (f.status === 'todo' && (s === 'mastered' || s === 'correct')) return false;
       return true;
     });
   }
@@ -492,6 +504,7 @@ const OB = (function () {
     const strong = topicStats().filter(t => t.a >= 5 && t.acc >= 0.85).map(t => t.id);
     shuffle(NEW.filter(q => strong.includes(q.topic) && (q.diff === 'H' || q.type === 'msq') && status(q.id) !== 'mastered')).forEach(add);
     // fill remainder with unseen/not mastered from any topic (keeps syllabus coverage)
+    shuffle(NEW.filter(q => !['mastered', 'correct'].includes(status(q.id)))).sort(unseenFirst).forEach(add);
     shuffle(NEW.filter(q => status(q.id) !== 'mastered')).sort(unseenFirst).forEach(add);
     return shuffle(out).map(q => q.id);
   }
@@ -551,7 +564,7 @@ const OB = (function () {
     };
     S.tests.push(test);
     if (S.tests.length > 80) S.tests = S.tests.slice(-80);
-    if (sess.kind === 'asgtest' && sess.week != null) {
+    if ((sess.kind === 'asgtest' || sess.kind === 'settest') && sess.week != null) {
       const sm = summarize(test);
       const cur = S.asg[sess.week] || { best: 0, last: 0, n: 0 };
       cur.n++; cur.last = Math.round(sm.pct * 10) / 10; cur.best = Math.max(cur.best, cur.last);
@@ -567,7 +580,7 @@ const OB = (function () {
     const q = Q[id]; const g = reviewGrade(q, checks);
     it.rv = checks; it.reviewed = 1; it.st = g.st; it.m = g.m;
     if (!it.ap) { recordAttempt(id, g.st === 'c', it.a); it.ap = 1; }
-    if (test.kind === 'asgtest' && test.week != null && S.asg[test.week]) {
+    if ((test.kind === 'asgtest' || test.kind === 'settest') && test.week != null && S.asg[test.week]) {
       const pct = Math.round(summarize(test).pct * 10) / 10; const c = S.asg[test.week];
       c.last = pct; c.best = Math.max(c.best, pct);
     }
@@ -626,7 +639,7 @@ const OB = (function () {
     get S() { return S; }, get storageOK() { return storageOK; }, get saveFailed() { return saveFailed; },
     save, load, rec, R, status, isActiveWrong, needsRevision, recordAttempt, newRec,
     grade, reviewGrade, rubricSuggest, correctText, answerText, isAnswered, norm, fillOK, shuffle,
-    retryList, activeWrongIds, weakConcepts, conceptStats, topicStats, catStats, diffStats, assignStats, overall,
+    retryList, activeWrongIds, weakConcepts, conceptStats, topicStats, catStats, diffStats, assignStats, setStats, overall,
     buildMockIds, filterPool, smartPractice, newSession, checkAnswer, reviewShort, finishSession, reviewInResults, summarize, secIndexOf,
     exportJSON, parseImport, applyImport, resetAll, exportCSV, validateState, defaultState, pickBalanced, wrongPriority
   };
@@ -961,7 +974,7 @@ function viewResults() {
   const test = S().tests.find(t => t.id === view.id);
   if (!test) { app.innerHTML = '<section class="card"><p>That result is no longer stored.</p><button class="btn primary" data-act="home">Home</button></section>'; return; }
   const sm = OB.summarize(test);
-  const asg = test.kind === 'asgtest';
+  const asg = test.kind === 'asgtest' || test.kind === 'settest';
   const f = view.filter || 'all';
   const filt = { all: () => true, wrong: it => it.st === 'w' || it.st === 'p', correct: it => it.st === 'c', un: it => it.st === 'u', bm: it => (S().q[it.id] || {}).bm, rev: it => it.st === 'r' };
   const items = test.items.map((it, i) => Object.assign({ no: i + 1 }, it)).filter(filt[f]);
@@ -985,7 +998,7 @@ function viewResults() {
    ${sm.review ? `<div class="banner warn">${sm.review} descriptive answer(s) need your self-review. They are excluded from the denominator (out of ${sm.scoredMax}, not ${sm.max}) until you review them below.</div>` : ''}
    ${target}
    ${wrongIds.length ? `<p>${wrongIds.length} incorrect answer(s) were saved to your <b>wrong-answer list</b> and will keep coming back until you answer each correctly on two separate retries.</p>` : ''}
-   <div class="row"><button class="btn primary" data-act="retry-from-test" data-id="${test.id}" ${wrongIds.length ? '' : 'disabled'}>Retry these mistakes now</button>${asg ? `<button class="btn" data-act="asg-test" data-w="${test.week}">Take this assignment test again</button>` : ''}<button class="btn" data-act="home">Home</button></div></div>
+   <div class="row"><button class="btn primary" data-act="retry-from-test" data-id="${test.id}" ${wrongIds.length ? '' : 'disabled'}>Retry these mistakes now</button>${test.kind === 'asgtest' ? `<button class="btn" data-act="asg-test" data-w="${test.week}">Take this assignment test again</button>` : ''}${test.kind === 'settest' ? `<button class="btn" data-act="set-test" data-t="${String(test.week).slice(2)}">Take this test again</button>` : ''}<button class="btn" data-act="home">Home</button></div></div>
    ${pending.length ? `<div class="card"><h2>Self-review required</h2><p>Descriptive answers cannot be graded reliably by a program. Compare with the reference answer and tick the rubric points you covered.</p>${pending.map(it => { const q = Q[it.id]; const s2 = { ans: { [q.id]: it.a }, rev: {}, checked: {} }; return `<div class="rv" data-qid="${q.id}"><h4>${esc(q.q)}</h4><p><b>Your answer:</b> ${esc(it.a || '(blank)')}</p>${rubricHtml(q, s2)}</div>`; }).join('')}</div>` : ''}
    <div class="card"><h2>Performance breakdown</h2>
     ${secNames ? breakdownTable('Section-wise', sm.bySec, k => OB.SECN[k], Object.keys(sm.bySec).sort()) : ''}
@@ -1018,7 +1031,7 @@ function renderHeader() {
   const h = $('#hdr'); if (!h) return;
   const items = [['home', 'Home'], ['assign', '1. Assignments'], ['practice', '2. New questions'], ['mock', '3. Mock exam'], ['retry', 'Wrong answers'], ['bookmarks', 'Bookmarks'], ['progress', 'Progress'], ['revision', 'Revision'], ['settings', 'Backup & settings']];
   h.innerHTML = `<div class="hwrap"><button class="burger" data-act="menu" aria-label="Menu" aria-expanded="${menuOpen}" aria-controls="menupanel">&#9776;</button><a class="brand" href="#/home" data-go="home">nptel <span>OB quiz</span></a></div>
-  ${menuOpen ? `<nav id="menupanel" aria-label="Main">${items.map(([n, l]) => `<button class="navb ${view.name === n || (n === 'assign' && view.name === 'asgweek') ? 'on' : ''}" data-go="${n}">${esc(l)}</button>`).join('')}</nav>` : ''}`;
+  ${menuOpen ? `<nav id="menupanel" aria-label="Main">${items.map(([n, l]) => `<button class="navb ${view.name === n || (n === 'assign' && view.name === 'asgweek') || (n === 'practice' && (view.name === 'setview' || view.name === 'custom')) ? 'on' : ''}" data-go="${n}">${esc(l)}</button>`).join('')}</nav>` : ''}`;
 }
 
 /* ---------- home ---------- */
@@ -1088,7 +1101,7 @@ function viewAsgWeek() {
 
 /* ---------- practice (stage 2) ---------- */
 function chkbox(group, val, label, on) { return `<label class="cb"><input type="checkbox" data-pf="${group}" value="${val}" ${on ? 'checked' : ''}> ${esc(label)}</label>`; }
-function viewPractice() {
+function viewCustom() {
   const pool = OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status });
   const cs = OB.catStats(); const wc = OB.weakConcepts().slice(0, 6);
   const types = [['mcq', 'Single answer'], ['msq', 'Multiple answer'], ['tf', 'True / False'], ['match', 'Match'], ['fill', 'Fill in the blank'], ['short', 'Short answer'], ['ar', 'Assertion-Reason']];
@@ -1107,6 +1120,38 @@ function viewPractice() {
    <p><button class="btn sm" data-act="pf-everything">Select everything (all sources, topics, levels, types)</button></p><p><b>${pool.length}</b> questions match.</p><button class="btn primary lg" data-act="pf-start" ${pool.length ? '' : 'disabled'}>Start practice (${Math.min(pf.n, pool.length)})</button> <button class="btn primary lg" data-act="pf-startall" ${pool.length ? '' : 'disabled'}>Start ALL ${pool.length} questions</button></div></section>`;
 }
 
+function setQs(t) { return t === 'all' ? OB.NEW : OB.NEW.filter(q => q.topic === t); }
+// practice pool: questions you have NOT answered correctly yet (new or wrong); falls back to not-yet-mastered
+function setPracticeIds(t) {
+  let q = setQs(t).filter(x => { const s = OB.status(x.id); return s === 'new' || s === 'incorrect'; });
+  if (!q.length) q = setQs(t).filter(x => OB.status(x.id) !== 'mastered');
+  return OB.shuffle(q.map(x => x.id));
+}
+function viewPractice() {
+  const ss = OB.setStats();
+  app.innerHTML = `<section><h1>Stage 2 - Practise New Questions</h1>
+  <p>${OB.NEW.length} new questions, grouped by chapter just like the assignments. Open a chapter to Learn it, Practise it, retry your mistakes, or take its mastery test (target 90%).</p>
+  <div class="row wrap"><button class="btn primary" data-act="set-open" data-t="all">All ${OB.NEW.length} questions</button><button class="btn" data-act="smart">Smart adaptive practice</button><button class="btn" data-act="difficult">Difficult questions</button><button class="btn" data-go="custom">Custom filters</button></div>
+  <div class="tscroll"><table class="tbl asg"><tr><th>Chapter</th><th>Questions</th><th>Attempted</th><th>Mastered</th><th>Needs work</th><th>Best test</th><th></th></tr>
+  ${ss.map(a => `<tr><td><b>${esc(a.title)}</b></td><td>${a.total}</td><td>${a.seen}/${a.total}${bar(a.seen / a.total)}</td><td>${a.mastered}/${a.total}${bar(a.mastered / a.total, 'ok')}</td><td>${a.wrong}</td><td>${a.best == null ? '-' : pct100(a.best, 0)} ${a.passed ? '<span class="chip st-mastered">Passed 90%</span>' : ''}</td><td><button class="btn sm primary" data-act="set-open" data-t="${a.id}">Open</button></td></tr>`).join('')}</table></div></section>`;
+}
+function viewSet() {
+  const t = view.topic; const a = OB.setStats().find(x => x.id === t); const qs = a.qs;
+  const wrong = OB.retryList({ topic: t === 'all' ? undefined : t, src: 'new' }).length;
+  const left = setPracticeIds(t).length;
+  app.innerHTML = `<section><p><button class="linkbtn" data-go="practice">&larr; All chapters</button></p>
+  <h1>${esc(a.title)}</h1>
+  <div class="tiles3"><div class="tile"><h3>Attempted</h3><b>${a.seen}/${a.total}</b>${bar(a.seen / a.total)}</div><div class="tile"><h3>Mastered</h3><b>${a.mastered}/${a.total}</b>${bar(a.mastered / a.total, 'ok')}</div><div class="tile"><h3>Mastery test</h3><b>${a.best == null ? 'not taken' : pct100(a.best, 0)}</b><span>${a.passed ? 'Passed (90%+)' : 'target 90%'} &middot; ${a.tests} attempt(s)</span></div></div>
+  <div class="row wrap">
+   <button class="btn primary" data-act="set-learn" data-t="${t}">Learn mode (answers + explanations)</button>
+   <button class="btn primary" data-act="set-practice" data-t="${t}">Practice mode (${left} not answered correctly yet)</button>
+   <button class="btn" data-act="set-practice-all" data-t="${t}">Practise everything again</button>
+   <button class="btn" data-act="set-retry" data-t="${t}" ${wrong ? '' : 'disabled'}>Retry mistakes (${wrong})</button>
+   <button class="btn danger-soft" data-act="set-test" data-t="${t}">Take mastery test (${a.total} questions)</button></div>
+  <p class="small">Practice mode only asks questions you have not answered correctly yet, so you never repeat what you already know. Learn mode never counts toward mastery. The mastery test hides all answers until you submit.</p>
+  <div class="tscroll"><table class="tbl"><tr><th>#</th><th>Type</th><th>Question</th><th>Status</th><th></th></tr>
+  ${qs.map((q, i) => { const s = OB.status(q.id); const r = S().q[q.id] || {}; return `<tr><td>${i + 1}</td><td>${esc(OB.qtypeLabel(q))}</td><td>${esc(q.q.length > 110 ? q.q.slice(0, 110) + '...' : q.q)}</td><td>${chip(s)}${r.bm ? ' &#9733;' : ''}</td><td><button class="btn sm" data-act="set-learn-from" data-t="${t}" data-i="${i}">Learn</button></td></tr>`; }).join('')}</table></div></section>`;
+}
 /* ---------- mock exam (stage 3) ---------- */
 function viewMock() {
   const st = S().settings; const mocks = S().tests.filter(t => t.kind === 'mock').slice().reverse();
@@ -1208,7 +1253,7 @@ function viewSettings() {
 }
 
 /* ---------- router / render ---------- */
-const VIEWS = { home: viewHome, assign: viewAssign, asgweek: viewAsgWeek, practice: viewPractice, mock: viewMock, retry: viewRetry, bookmarks: viewBookmarks, progress: viewProgress, revision: viewRevision, settings: viewSettings, play: viewPlay, results: viewResults };
+const VIEWS = { home: viewHome, assign: viewAssign, asgweek: viewAsgWeek, practice: viewPractice, custom: viewCustom, setview: viewSet, mock: viewMock, retry: viewRetry, bookmarks: viewBookmarks, progress: viewProgress, revision: viewRevision, settings: viewSettings, play: viewPlay, results: viewResults };
 function render() {
   if (view.name === 'play' && !sess) view = { name: 'home' };
   renderHeader();
@@ -1304,6 +1349,17 @@ async function onClick(e) {
       if (!(await askConfirm(`Start the ${weekLabel(w)} mastery test? All ${ids.length} questions are shown without answers. Your target is 90% or more.`, 'Start test'))) break;
       startSession({ kind: 'asgtest', label: 'Assignment mastery test: ' + weekLabel(w), mode: 'exam', qids: OB.shuffle(ids), week: w, partial: S().settings.partial }); break;
     }
+    case 'set-open': go('setview', { topic: d.t }); break;
+    case 'set-learn': startLearn(setQs(d.t).map(q => q.id), 0, 'Learn: ' + (OB.TOPIC[d.t] ? OB.TOPIC[d.t].title : 'all new questions')); break;
+    case 'set-learn-from': startLearn(setQs(d.t).map(q => q.id), +d.i, 'Learn: ' + (OB.TOPIC[d.t] ? OB.TOPIC[d.t].title : 'all new questions')); break;
+    case 'set-practice': startPractice(setPracticeIds(d.t), 'Practice: ' + (OB.TOPIC[d.t] ? OB.TOPIC[d.t].title : 'all new questions'), 'practice'); break;
+    case 'set-practice-all': startPractice(OB.shuffle(setQs(d.t).map(q => q.id)), 'Practice (all): ' + (OB.TOPIC[d.t] ? OB.TOPIC[d.t].title : 'all new questions'), 'practice'); break;
+    case 'set-retry': startPractice(OB.shuffle(OB.retryList({ topic: d.t === 'all' ? undefined : d.t, src: 'new' })), 'Retry mistakes', 'retry'); break;
+    case 'set-test': {
+      const ids = setQs(d.t).map(q => q.id);
+      if (!(await askConfirm(`Start the mastery test? All ${ids.length} questions are shown without answers. Your target is 90% or more.`, 'Start test'))) break;
+      startSession({ kind: 'settest', label: 'Mastery test: ' + (OB.TOPIC[d.t] ? OB.TOPIC[d.t].title : 'all new questions'), mode: 'exam', qids: OB.shuffle(ids), week: 'T_' + d.t, partial: S().settings.partial }); break;
+    }
     case 'pf-all': pf.topics = OB.DATA.topics.map(t => t.id); render(); break;
     case 'pf-allq': pf.n = Math.max(1, OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }).length); render(); break;
     case 'pf-set': { const all = { cats: ['newA', 'newB'], diffs: ['E', 'M', 'H'], types: ['mcq', 'msq', 'tf', 'match', 'fill', 'short', 'ar'] }[d.g]; pf[d.g] = d.v === 'all' ? all.slice() : []; render(); break; }
@@ -1312,9 +1368,9 @@ async function onClick(e) {
     case 'pf-startall': { const pool = OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }); startPractice(OB.shuffle(pool).map(q => q.id), 'All ' + pool.length + ' questions', 'practice'); break; }
     case 'pf-start': { const pool = OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }); const ids = OB.shuffle(pool).slice(0, pf.n).map(q => q.id); startPractice(ids, 'Practice: new questions', 'practice'); break; }
     case 'smart': { const ids = OB.smartPractice(pf.n); startPractice(ids, 'Smart adaptive practice', 'practice'); break; }
-    case 'topic-practice': { pf.topics = [d.t]; pf.cats = ['newA', 'newB']; pf.diffs = []; pf.types = []; pf.status = 'all'; go('practice'); break; }
+    case 'topic-practice': go('setview', { topic: d.t }); break;
     case 'concept': startConcept(d.c); break;
-    case 'difficult': { const pool = OB.filterPool({ cats: ['newA', 'newB'], diffs: ['H'], status: 'notmastered' }); const ids = OB.shuffle(pool).slice(0, pf.n).map(q => q.id); startPractice(ids, 'Difficult questions', 'practice'); break; }
+    case 'difficult': { const pool = OB.filterPool({ cats: ['newA', 'newB'], diffs: ['H'], status: 'todo' }); const ids = OB.shuffle(pool).slice(0, pf.n).map(q => q.id); startPractice(ids, 'Difficult questions', 'practice'); break; }
     case 'mock-start': {
       const mins = Math.max(0, Math.min(600, parseInt($('#mocktime').value, 10) || 0));
       S().settings.timerMin = mins;
@@ -1398,7 +1454,7 @@ window.addEventListener('hashchange', () => {
   if (suppressHash) { suppressHash = false; return; }
   const n = location.hash.replace(/^#\/?/, '') || 'home';
   if (n === 'play' && sess) view = { name: 'play' };
-  else if (VIEWS[n] && !['results', 'asgweek', 'play'].includes(n)) view = { name: n };
+  else if (VIEWS[n] && !['results', 'asgweek', 'setview', 'play'].includes(n)) view = { name: n };
   else view = { name: 'home' };
   render();
 });
