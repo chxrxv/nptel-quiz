@@ -1104,7 +1104,7 @@ function viewPractice() {
    <fieldset><legend>Question type</legend>${types.map(([k, l]) => chkbox('types', k, l, pf.types.includes(k))).join('')}<div class="selrow"><button class="linkbtn" data-act="pf-set" data-g="types" data-v="all">Select all</button> <button class="linkbtn" data-act="pf-set" data-g="types" data-v="none">Clear</button></div></fieldset>
    <fieldset><legend>Status</legend>${[['all', 'All'], ['unseen', 'Unseen only'], ['wrong', 'Previously incorrect (active)'], ['notmastered', 'Not yet mastered']].map(([k, l]) => `<label class="cb"><input type="radio" name="pfstatus" data-pf="status" value="${k}" ${pf.status === k ? 'checked' : ''}> ${l}</label>`).join('')}</fieldset>
    <label class="cb">Number of questions <input type="number" min="1" max="600" value="${pf.n}" data-pf="n" class="numin"> <button class="linkbtn" data-act="pf-allq">use all matching</button></label>
-   <p><button class="btn sm" data-act="pf-everything">Select everything (all sources, topics, levels, types)</button></p><p><b>${pool.length}</b> questions match.</p><button class="btn primary lg" data-act="pf-start" ${pool.length ? '' : 'disabled'}>Start practice</button></div></section>`;
+   <p><button class="btn sm" data-act="pf-everything">Select everything (all sources, topics, levels, types)</button></p><p><b>${pool.length}</b> questions match.</p><button class="btn primary lg" data-act="pf-start" ${pool.length ? '' : 'disabled'}>Start practice (${Math.min(pf.n, pool.length)})</button> <button class="btn primary lg" data-act="pf-startall" ${pool.length ? '' : 'disabled'}>Start ALL ${pool.length} questions</button></div></section>`;
 }
 
 /* ---------- mock exam (stage 3) ---------- */
@@ -1309,6 +1309,7 @@ async function onClick(e) {
     case 'pf-set': { const all = { cats: ['newA', 'newB'], diffs: ['E', 'M', 'H'], types: ['mcq', 'msq', 'tf', 'match', 'fill', 'short', 'ar'] }[d.g]; pf[d.g] = d.v === 'all' ? all.slice() : []; render(); break; }
     case 'pf-everything': pf.cats = ['newA', 'newB']; pf.topics = OB.DATA.topics.map(t => t.id); pf.diffs = ['E', 'M', 'H']; pf.types = ['mcq', 'msq', 'tf', 'match', 'fill', 'short', 'ar']; pf.status = 'all'; render(); break;
     case 'pf-none': pf.topics = []; render(); break;
+    case 'pf-startall': { const pool = OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }); startPractice(OB.shuffle(pool).map(q => q.id), 'All ' + pool.length + ' questions', 'practice'); break; }
     case 'pf-start': { const pool = OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }); const ids = OB.shuffle(pool).slice(0, pf.n).map(q => q.id); startPractice(ids, 'Practice: new questions', 'practice'); break; }
     case 'smart': { const ids = OB.smartPractice(pf.n); startPractice(ids, 'Smart adaptive practice', 'practice'); break; }
     case 'topic-practice': { pf.topics = [d.t]; pf.cats = ['newA', 'newB']; pf.diffs = []; pf.types = []; pf.status = 'all'; go('practice'); break; }
