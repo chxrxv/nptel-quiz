@@ -1211,7 +1211,7 @@ async function onClick(e) {
       if (el.dataset.locked) return; const q = curQ(); const i = +d.i;
       if (sess.mode === 'practice' && (q.type === 'mcq' || q.type === 'tf') && !sess.checked[q.id]) {
         sess.ans[q.id] = i; const g = OB.checkAnswer(sess, q.id); OB.save();
-        autoWait = g.st !== 'c'; render(); scheduleAdvance(g.st === 'c' ? 900 : 10000); break;
+        autoWait = g.st !== 'c'; render(); scheduleAdvance(g.st === 'c' ? 300 : 10000); break;
       }
       if (q.type === 'msq') { const a = Array.isArray(sess.ans[q.id]) ? sess.ans[q.id].slice() : []; const k = a.indexOf(i); if (k >= 0) a.splice(k, 1); else a.push(i); a.sort((x, y) => x - y); sess.ans[q.id] = a; }
       else sess.ans[q.id] = i;
