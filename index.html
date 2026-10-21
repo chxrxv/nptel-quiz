@@ -323,7 +323,7 @@ const OB = (function () {
   function status(id) {
     const r = S.q[id];
     if (!r || !r.a) return 'new';
-    if (r.s >= 2) return 'mastered';
+    if (r.s >= 1) return 'mastered';
     if (r.last === 'w') return 'incorrect';
     if (r.ew) return 'improving';
     return 'correct';
@@ -997,7 +997,7 @@ function viewResults() {
    </div>
    ${sm.review ? `<div class="banner warn">${sm.review} descriptive answer(s) need your self-review. They are excluded from the denominator (out of ${sm.scoredMax}, not ${sm.max}) until you review them below.</div>` : ''}
    ${target}
-   ${wrongIds.length ? `<p>${wrongIds.length} incorrect answer(s) were saved to your <b>wrong-answer list</b> and will keep coming back until you answer each correctly on two separate retries.</p>` : ''}
+   ${wrongIds.length ? `<p>${wrongIds.length} incorrect answer(s) were saved to your <b>wrong-answer list</b> and will keep coming back until you answer each one correctly on a retry.</p>` : ''}
    <div class="row"><button class="btn primary" data-act="retry-from-test" data-id="${test.id}" ${wrongIds.length ? '' : 'disabled'}>Retry these mistakes now</button>${test.kind === 'asgtest' ? `<button class="btn" data-act="asg-test" data-w="${test.week}">Take this assignment test again</button>` : ''}${test.kind === 'settest' ? `<button class="btn" data-act="set-test" data-t="${String(test.week).slice(2)}">Take this test again</button>` : ''}<button class="btn" data-act="home">Home</button></div></div>
    ${pending.length ? `<div class="card"><h2>Self-review required</h2><p>Descriptive answers cannot be graded reliably by a program. Compare with the reference answer and tick the rubric points you covered.</p>${pending.map(it => { const q = Q[it.id]; const s2 = { ans: { [q.id]: it.a }, rev: {}, checked: {} }; return `<div class="rv" data-qid="${q.id}"><h4>${esc(q.q)}</h4><p><b>Your answer:</b> ${esc(it.a || '(blank)')}</p>${rubricHtml(q, s2)}</div>`; }).join('')}</div>` : ''}
    <div class="card"><h2>Performance breakdown</h2>
@@ -1076,7 +1076,7 @@ function viewAssign() {
   const as = OB.assignStats(); const o = OB.overall();
   const unoff = OB.ASG.filter(q => !q.official).length;
   app.innerHTML = `<section><h1>Stage 1 - Learn NPTEL Assignments</h1>
-  <p>${o.aTot} original questions from ${as.length} assignments (Week 0-12, graded and practice versions). Overall: ${pct(o.aSeenPct)} attempted, ${pct(o.aMastPct)} mastered. Mastery needs two correct answers on separate attempts, and each assignment is passed with a 90%+ mastery test.</p>
+  <p>${o.aTot} original questions from ${as.length} assignments (Week 0-12, graded and practice versions). Overall: ${pct(o.aSeenPct)} attempted, ${pct(o.aMastPct)} mastered. A question is mastered once you answer it correctly (a wrong answer sends it back), and each assignment is passed with a 90%+ mastery test.</p>
   <div class="banner info">${OB.ASG.length - unoff} questions have the official key copied from your portal. ${unoff} questions come from practice or orientation assignments whose answers were not in your export; their answers are marked <b>unofficial</b> (derived from the lecture slides, or identical graded questions) - please double-check them against the portal.</div>
   <div class="tscroll"><table class="tbl asg"><tr><th>Assignment</th><th>Questions</th><th>Attempted</th><th>Mastered</th><th>Needs work</th><th>Best test</th><th></th></tr>
   ${as.map(a => `<tr><td><b>${esc(a.week.label)}</b><br><span class="small">${esc(a.week.title)}</span></td><td>${a.total}</td><td>${a.seen}/${a.total}${bar(a.seen / a.total)}</td><td>${a.mastered}/${a.total}${bar(a.mastered / a.total, 'ok')}</td><td>${a.wrong}</td><td>${a.best == null ? '-' : pct100(a.best, 0)} ${a.passed ? '<span class="chip st-mastered">Passed 90%</span>' : ''}</td><td><button class="btn sm primary" data-act="open-week" data-w="${a.week.id}">Open</button></td></tr>`).join('')}</table></div></section>`;
@@ -1181,7 +1181,7 @@ function viewRetry() {
   const inc = rows.filter(x => x.s === 'incorrect').length, imp = rows.filter(x => x.s === 'improving').length;
   const list = OB.retryList({ src: rf.src || undefined, topic: rf.topic || undefined, week: rf.week === '' ? undefined : +rf.week, recent: rf.scope === 'recent' });
   app.innerHTML = `<section><h1>Wrong-answer revision queue</h1>
-  <p>Every question you get wrong stays here until you answer it correctly on <b>two separate retry attempts</b>. A wrong answer sends it back to the queue. Repeated misses are shown first, then recent ones, and older mistakes keep resurfacing.</p>
+  <p>Every question you get wrong stays here until you answer it correctly <b>once</b> on a retry. A wrong answer sends it back to the queue. Repeated misses are shown first, then recent ones, and older mistakes keep resurfacing.</p>
   <div class="tiles3"><div class="tile"><h3>Incorrect</h3><b>${inc}</b><span>last answer wrong</span></div><div class="tile"><h3>Improving</h3><b>${imp}</b><span>1 correct retry, 1 more needed</span></div><div class="tile"><h3>Mastered after mistakes</h3><b>${mastered.length}</b><span>originally wrong, now confirmed</span></div></div>
   <div class="card"><h2>Build a retry quiz</h2>
    <div class="row wrap"><label>Questions from <select data-rf="src"><option value="">All sources</option><option value="asg" ${rf.src === 'asg' ? 'selected' : ''}>Original assignments</option><option value="new" ${rf.src === 'new' ? 'selected' : ''}>New questions</option></select></label>
