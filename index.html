@@ -1057,13 +1057,13 @@ function viewPractice() {
   <div class="card"><h2>Smart adaptive practice</h2><p>Builds a set from your weak concepts (new scenarios, not repeats), topics you have not covered, and harder questions where you are strong - so syllabus coverage never silently shrinks.</p>
    <div class="row"><button class="btn primary" data-act="smart">Start smart practice (${pf.n})</button>${wc.length ? `<span class="small">Weak concepts now: ${wc.map(c => esc(conceptName(c.concept))).join(', ')}</span>` : '<span class="small">Answer some assignment questions first so it can learn your weak concepts.</span>'}</div></div>
   <div class="card"><h2>Custom practice set</h2>
-   <fieldset><legend>Question source</legend>${chkbox('cats', 'newA', 'New questions on assignment concepts', pf.cats.includes('newA'))}${chkbox('cats', 'newB', 'New questions on other syllabus concepts', pf.cats.includes('newB'))}</fieldset>
+   <fieldset><legend>Question source</legend>${chkbox('cats', 'newA', 'New questions on assignment concepts', pf.cats.includes('newA'))}${chkbox('cats', 'newB', 'New questions on other syllabus concepts', pf.cats.includes('newB'))}<div class="selrow"><button class="linkbtn" data-act="pf-set" data-g="cats" data-v="all">Select all</button> <button class="linkbtn" data-act="pf-set" data-g="cats" data-v="none">Clear</button></div></fieldset>
    <fieldset><legend>Topics / chapters (none ticked = mix of all chapters)</legend><div class="cbgrid">${OB.DATA.topics.map(t => chkbox('topics', t.id, t.title, pf.topics.includes(t.id))).join('')}</div><button class="linkbtn" data-act="pf-all">Select all</button> <button class="linkbtn" data-act="pf-none">Clear</button></fieldset>
-   <fieldset><legend>Difficulty</legend>${[['E', 'Easy'], ['M', 'Moderate'], ['H', 'Difficult / twisted']].map(([k, l]) => chkbox('diffs', k, l, pf.diffs.includes(k))).join('')}</fieldset>
-   <fieldset><legend>Question type</legend>${types.map(([k, l]) => chkbox('types', k, l, pf.types.includes(k))).join('')}</fieldset>
+   <fieldset><legend>Difficulty</legend>${[['E', 'Easy'], ['M', 'Moderate'], ['H', 'Difficult / twisted']].map(([k, l]) => chkbox('diffs', k, l, pf.diffs.includes(k))).join('')}<div class="selrow"><button class="linkbtn" data-act="pf-set" data-g="diffs" data-v="all">Select all</button> <button class="linkbtn" data-act="pf-set" data-g="diffs" data-v="none">Clear</button></div></fieldset>
+   <fieldset><legend>Question type</legend>${types.map(([k, l]) => chkbox('types', k, l, pf.types.includes(k))).join('')}<div class="selrow"><button class="linkbtn" data-act="pf-set" data-g="types" data-v="all">Select all</button> <button class="linkbtn" data-act="pf-set" data-g="types" data-v="none">Clear</button></div></fieldset>
    <fieldset><legend>Status</legend>${[['all', 'All'], ['unseen', 'Unseen only'], ['wrong', 'Previously incorrect (active)'], ['notmastered', 'Not yet mastered']].map(([k, l]) => `<label class="cb"><input type="radio" name="pfstatus" data-pf="status" value="${k}" ${pf.status === k ? 'checked' : ''}> ${l}</label>`).join('')}</fieldset>
    <label class="cb">Number of questions <input type="number" min="1" max="600" value="${pf.n}" data-pf="n" class="numin"> <button class="linkbtn" data-act="pf-allq">use all matching</button></label>
-   <p><b>${pool.length}</b> questions match.</p><button class="btn primary lg" data-act="pf-start" ${pool.length ? '' : 'disabled'}>Start practice</button></div></section>`;
+   <p><button class="btn sm" data-act="pf-everything">Select everything (all sources, topics, levels, types)</button></p><p><b>${pool.length}</b> questions match.</p><button class="btn primary lg" data-act="pf-start" ${pool.length ? '' : 'disabled'}>Start practice</button></div></section>`;
 }
 
 /* ---------- mock exam (stage 3) ---------- */
@@ -1259,6 +1259,8 @@ async function onClick(e) {
     }
     case 'pf-all': pf.topics = OB.DATA.topics.map(t => t.id); render(); break;
     case 'pf-allq': pf.n = Math.max(1, OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }).length); render(); break;
+    case 'pf-set': { const all = { cats: ['newA', 'newB'], diffs: ['E', 'M', 'H'], types: ['mcq', 'msq', 'tf', 'match', 'fill', 'short', 'ar'] }[d.g]; pf[d.g] = d.v === 'all' ? all.slice() : []; render(); break; }
+    case 'pf-everything': pf.cats = ['newA', 'newB']; pf.topics = OB.DATA.topics.map(t => t.id); pf.diffs = ['E', 'M', 'H']; pf.types = ['mcq', 'msq', 'tf', 'match', 'fill', 'short', 'ar']; pf.status = 'all'; render(); break;
     case 'pf-none': pf.topics = []; render(); break;
     case 'pf-start': { const pool = OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }); const ids = OB.shuffle(pool).slice(0, pf.n).map(q => q.id); startPractice(ids, 'Practice: new questions', 'practice'); break; }
     case 'smart': { const ids = OB.smartPractice(pf.n); startPractice(ids, 'Smart adaptive practice', 'practice'); break; }
