@@ -1012,7 +1012,7 @@ function viewHome() {
     <div class="tile"><h3>Weak topics</h3>${weakT.length ? '<ul class="plain">' + weakT.map(t => `<li>${esc(t.title)} <b>${pct(t.acc)}</b> <button class="linkbtn" data-act="topic-practice" data-t="${t.id}">practise</button></li>`).join('') + '</ul>' : '<span>Not enough data yet (needs 3+ attempts in a topic below 80%).</span>'}</div>
   </div>
   <div class="quick"><button class="btn" data-go="retry">Retry Wrong Answers</button><button class="btn" data-act="smart">Smart adaptive practice</button><button class="btn" data-act="difficult">Practise difficult questions</button><button class="btn" data-go="practice">Practise by topic</button><button class="btn" data-go="bookmarks">Bookmarked questions (${o.bookmarks})</button><button class="btn" data-go="progress">View progress</button><button class="btn" data-go="revision">Revision notes</button><button class="btn" data-go="settings">Export / import progress</button></div>
-  <p class="small foot">Practice scoring defaults: 1 mark per question, no negative marking, exact answer needed on multiple-answer questions (all changeable in Backup &amp; settings). These are practice defaults; they are not NPTEL's official marking scheme. Generated questions are practice material and are not guaranteed to appear in the real exam.</p>
+  <p class="small foot">Visitors: <b id="vis">${visitCount == null ? '-' : visitCount}</b> (one count per browser per day)<br>Practice scoring defaults: 1 mark per question, no negative marking, exact answer needed on multiple-answer questions (all changeable in Backup &amp; settings). These are practice defaults; they are not NPTEL's official marking scheme. Generated questions are practice material and are not guaranteed to appear in the real exam.</p>
   </section>`;
   flash = '';
 }
@@ -1351,6 +1351,20 @@ window.addEventListener('hashchange', () => {
   else view = { name: 'home' };
   render();
 });
+
+/* ---------- visitor counter (counts one visit per browser per day; needs internet, fails silently offline) ---------- */
+let visitCount = null;
+(function countVisit() {
+  if (!/^https?:$/.test(location.protocol)) return;
+  let today = new Date().toISOString().slice(0, 10), seen = null;
+  try { seen = localStorage.getItem('ob_visit_day'); } catch (e) { }
+  const url = 'https://abacus.jasoncameron.dev/' + (seen === today ? 'get' : 'hit') + '/chxrxv-nptel-quiz/visits';
+  fetch(url).then(r => r.json()).then(j => {
+    if (typeof j.value !== 'number') return;
+    visitCount = j.value; try { localStorage.setItem('ob_visit_day', today); } catch (e) { }
+    const el = $('#vis'); if (el) el.textContent = visitCount;
+  }).catch(() => { });
+})();
 
 /* ---------- init ---------- */
 (function init() {
