@@ -844,6 +844,7 @@ function viewPlay() {
   const s = sess;
   if (!s) return viewHome();
   if (s.confirm) return viewConfirm();
+  if (s.cp) return viewCheckpoint();
   const id = s.qids[s.idx]; const q = Q[id]; const rc = S().q[id] || {};
   const exam = s.mode === 'exam', learn = s.mode === 'learn';
   const chk = s.checked[id];
@@ -890,6 +891,28 @@ function viewPlay() {
     <aside class="side" aria-label="Question palette"><h3>Questions</h3><div id="pal">${paletteHtml()}</div>${exam ? '<p class="small">Answers are hidden until you submit. You can change any answer before final submission.</p>' : ''}</aside>
    </div>
   </section>`;
+}
+function advance() {
+  // move to next question; in practice mode pause for a checkpoint after every 10 questions
+  if (sess.idx >= sess.qids.length - 1) return false;
+  sess.idx++;
+  if (sess.mode === 'practice' && sess.idx % 10 === 0) sess.cp = true;
+  OB.save(); render(); window.scrollTo(0, 0);
+  return true;
+}
+function viewCheckpoint() {
+  const s = sess, end = s.idx, start = end - 10;
+  let c = 0, w = 0, u = 0, tc = 0, tw = 0;
+  s.qids.forEach((id, i) => {
+    const g = s.checked[id];
+    if (i < end) { if (g && g.st === 'c') tc++; else if (g && (g.st === 'w' || g.st === 'p')) tw++; }
+    if (i >= start && i < end) { if (!g) u++; else if (g.st === 'c') c++; else if (g.st === 'w' || g.st === 'p') w++; }
+  });
+  app.innerHTML = `<section class="card narrow"><h1>Checkpoint: ${end} of ${s.qids.length} done</h1>
+   <div class="stats"><div><b>${c}</b>Correct (last 10)</div><div><b>${w}</b>Wrong (last 10)</div><div><b>${u}</b>Skipped</div></div>
+   <p>So far: <b>${tc}</b> correct, <b>${tw}</b> wrong${end ? ' (' + Math.round(tc / Math.max(1, tc + tw) * 100) + '% accuracy)' : ''}. Wrong answers are already saved to your wrong-answer list.</p>
+   ${(() => { const bad = s.qids.slice(start, end).filter(id => s.checked[id] && (s.checked[id].st === 'w' || s.checked[id].st === 'p')); if (!bad.length) return '<div class="banner good">No mistakes in the last 10 - nice.</div>'; return '<h2>Review your ' + bad.length + ' mistake(s)</h2><p class="small">Read each one, then continue when ready. They stay in your wrong-answer list until you answer them correctly twice.</p>' + bad.map(id => { const q = Q[id]; return `<details class="qrow st-w" open><summary><span class="qs">${esc(q.q)}</span></summary><div class="qbody">${q.type === 'fill' || q.type === 'short' ? '<p><b>Your answer:</b> ' + esc(s.ans[id] || '') + '</p>' : optionsHtml(q, s, true)}${explainHtml(q)}</div></details>`; }).join(''); })()}
+   <div class="row"><button class="btn primary lg" data-act="cp-continue">Continue (next 10)</button><button class="btn" data-act="finish-practice">Finish &amp; see results</button><button class="btn" data-act="exit">Take a break (saved)</button></div></section>`;
 }
 function viewConfirm() {
   const s = sess;
@@ -1195,7 +1218,7 @@ function scheduleAdvance(ms) {
   autoT = setTimeout(() => {
     cancelAuto();
     if (!sess || view.name !== 'play') return;
-    if (sess.idx < sess.qids.length - 1) { sess.idx++; OB.save(); render(); window.scrollTo(0, 0); } else submitSession(false);
+    if (!advance()) submitSession(false);
   }, ms);
 }
 async function onClick(e) {
@@ -1217,9 +1240,10 @@ async function onClick(e) {
       else sess.ans[q.id] = i;
       afterAnswer(); break;
     }
-    case 'goto': sess.idx = +d.i; OB.save(); render(); break;
+    case 'goto': sess.cp = false; sess.idx = +d.i; OB.save(); render(); break;
     case 'prev': if (sess.idx > 0) { sess.idx--; OB.save(); render(); window.scrollTo(0, 0); } break;
-    case 'next': if (sess.idx < sess.qids.length - 1) { sess.idx++; OB.save(); render(); window.scrollTo(0, 0); } break;
+    case 'next': advance(); break;
+    case 'cp-continue': sess.cp = false; OB.save(); render(); break;
     case 'mark': { const id = curQ().id; if (sess.marked[id]) delete sess.marked[id]; else sess.marked[id] = 1; OB.save(); render(); break; }
     case 'bookmark': { const r = OB.R(curQ().id); r.bm = r.bm ? 0 : 1; OB.save(); render(); break; }
     case 'needrev': { const r = OB.R(curQ().id); r.fl = r.fl ? 0 : 1; OB.save(); render(); break; }
@@ -1336,7 +1360,7 @@ function onKey(e) {
   if (view.name !== 'play' || !sess || sess.confirm) return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'ArrowRight') { if (sess.idx < sess.qids.length - 1) { sess.idx++; OB.save(); render(); } }
+  if (e.key === 'ArrowRight') { advance(); }
   else if (e.key === 'ArrowLeft') { if (sess.idx > 0) { sess.idx--; OB.save(); render(); } }
   else if (/^[1-6]$/.test(e.key)) { const b = document.querySelector(`#opts [data-act="pick"][data-i="${+e.key - 1}"]`); if (b) b.click(); }
   else if (e.key === 'm' || e.key === 'M') { const b = document.querySelector('[data-act="mark"]'); if (b) b.click(); }
