@@ -98,6 +98,8 @@ details.card>summary{cursor:pointer;list-style:none}.inl{display:inline;font-siz
 #hdr nav .navb{text-align:left;padding:10px 14px}
 #hdr{position:sticky}
 
+.qimg{width:100%;max-width:380px;color:var(--ink);fill:currentColor;display:block;margin:6px 0}figure{margin:8px 0}
+
 </style>
 </head>
 <body>
@@ -738,6 +740,11 @@ function startConcept(concept) {
 }
 
 /* ---------- question rendering ---------- */
+const QIMG = {
+  'W2G-5': `<svg viewBox="0 0 330 120" class="qimg" role="img" aria-label="Rows of dots: dots in each vertical column are close together, columns are far apart"><circle cx="30" cy="20" r="5"/><circle cx="30" cy="36" r="5"/><circle cx="30" cy="52" r="5"/><circle cx="30" cy="68" r="5"/><circle cx="30" cy="84" r="5"/><circle cx="30" cy="100" r="5"/><circle cx="100" cy="20" r="5"/><circle cx="100" cy="36" r="5"/><circle cx="100" cy="52" r="5"/><circle cx="100" cy="68" r="5"/><circle cx="100" cy="84" r="5"/><circle cx="100" cy="100" r="5"/><circle cx="170" cy="20" r="5"/><circle cx="170" cy="36" r="5"/><circle cx="170" cy="52" r="5"/><circle cx="170" cy="68" r="5"/><circle cx="170" cy="84" r="5"/><circle cx="170" cy="100" r="5"/><circle cx="240" cy="20" r="5"/><circle cx="240" cy="36" r="5"/><circle cx="240" cy="52" r="5"/><circle cx="240" cy="68" r="5"/><circle cx="240" cy="84" r="5"/><circle cx="240" cy="100" r="5"/><circle cx="310" cy="20" r="5"/><circle cx="310" cy="36" r="5"/><circle cx="310" cy="52" r="5"/><circle cx="310" cy="68" r="5"/><circle cx="310" cy="84" r="5"/><circle cx="310" cy="100" r="5"/></svg>`,
+  'W2G-6': `<svg viewBox="0 0 330 140" class="qimg" role="img" aria-label="A door opening: the open door looks like a trapezoid, yet is still perceived as a rectangle"><rect x="40" y="15" width="70" height="110" fill="none" stroke="currentColor" stroke-width="3"/><polygon points="110,15 190,35 190,105 110,125" fill="none" stroke="currentColor" stroke-width="3"/><polygon points="110,15 250,45 250,95 110,125" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/><circle cx="180" cy="72" r="4"/></svg>`
+};
+const imgHtml = q => QIMG[q.id] ? `<figure>${QIMG[q.id]}<figcaption class="small">Illustration recreated for this app - the original picture was not in your export.</figcaption></figure>` : '';
 function optionsHtml(q, s, reveal) {
   const id = q.id, a = s.ans[id], lock = reveal ? ' data-locked="1"' : '';
   if (q.type === 'mcq' || q.type === 'tf') {
@@ -866,7 +873,7 @@ function viewPlay() {
         <button class="btn sm ${s.marked[id] ? 'active' : ''}" data-act="mark" aria-pressed="${!!s.marked[id]}">&#9873; Mark for review</button>
         <button class="btn sm ${rc.bm ? 'active' : ''}" data-act="bookmark" aria-pressed="${!!rc.bm}">&#9733; Bookmark</button>
         ${learn ? `<button class="btn sm ${rc.fl ? 'active' : ''}" data-act="needrev" aria-pressed="${!!rc.fl}">Needs revision</button>` : ''}</div>
-      <h2 class="qtext" id="qtext">${esc(q.q)}</h2>
+      <h2 class="qtext" id="qtext">${esc(q.q)}</h2>${imgHtml(q)}
       <p class="hint">${esc(hint(q))}</p>
       ${resultBanner}${autoWait && chk && chk.st !== 'c' ? '<p class="small">Next question in <b id="cd"></b> s &nbsp;<button class="linkbtn" data-act="stay">stay on this question</button></p>' : ''}
       <div id="opts">${optionsHtml(q, s, reveal)}</div>
@@ -954,7 +961,7 @@ function viewResults() {
     const yours = (q.type === 'fill' || q.type === 'short') ? `<p><b>Your answer:</b> ${esc(it.a || '(not answered)')}</p>` : '';
     const why = (it.st === 'w' || it.st === 'p') ? `<p class="why"><b>Why this was marked wrong:</b> your answer was <i>${esc(OB.answerText(q, it.a)).replace(/\n/g, '<br>')}</i>; the correct answer is <i>${esc(OB.correctText(q)).replace(/\n/g, '<br>')}</i>. See the explanation below for the concept.</p>` : '';
     return `<details class="qrow st-${it.st}" ${f !== 'all' ? 'open' : ''}><summary><span class="no">${it.no}</span>${resultStatusChip(it.st, it.reviewed)}<span class="qs">${esc(q.q.length > 150 ? q.q.slice(0, 150) + '...' : q.q)}</span></summary>
-      <div class="qbody"><p class="qfull">${esc(q.q)}</p>${showOpts ? optionsHtml(q, s2, true) : yours}${why}${q.type === 'short' && it.st !== 'r' ? `<p class="expect"><b>Reference answer:</b> ${esc(q.ref)}</p>` : ''}${explainHtml(q)}
+      <div class="qbody"><p class="qfull">${esc(q.q)}</p>${imgHtml(q)}${showOpts ? optionsHtml(q, s2, true) : yours}${why}${q.type === 'short' && it.st !== 'r' ? `<p class="expect"><b>Reference answer:</b> ${esc(q.ref)}</p>` : ''}${explainHtml(q)}
       <div class="row"><button class="btn sm ${rc.bm ? 'active' : ''}" data-act="bookmark-q" data-id="${q.id}">&#9733; Bookmark</button><button class="btn sm" data-act="learn-one" data-id="${q.id}">Revisit in Learn mode</button><span class="small">Status: ${OB.STATUS_LABEL[OB.status(q.id)]}</span></div></div></details>`;
   }).join('') : '<p class="small">No questions in this filter.</p>'}
    </div></section>`;
