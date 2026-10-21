@@ -721,7 +721,7 @@ async function submitSession(auto) {
   if ((kind === 'asgpractice' || kind === 'retry') && !auto) {
     const ids = OB.retryList(kind === 'asgpractice' ? { week: wk } : {});
     if (ids.length && await askConfirm(`You have <b>${ids.length}</b> mistake(s) still to master${kind === 'asgpractice' ? ' in this assignment' : ''}. Practise only those now?`, 'Practise my mistakes')) {
-      startPractice(ids, 'Mistakes only' + (kind === 'asgpractice' ? ': ' + weekLabel(wk) : ''), 'retry');
+      startPractice(OB.shuffle(ids), 'Mistakes only' + (kind === 'asgpractice' ? ': ' + weekLabel(wk) : ''), 'retry');
     }
   }
 }
@@ -1249,13 +1249,13 @@ async function onClick(e) {
     case 'open-week': go('asgweek', { week: +d.w }); break;
     case 'asg-learn': { const ids = OB.ASG.filter(q => q.week === +d.w).map(q => q.id); startLearn(ids, 0, 'Learn: ' + weekLabel(+d.w)); break; }
     case 'learn-from': { const ids = OB.ASG.filter(q => q.week === +d.w).map(q => q.id); startLearn(ids, +d.i, 'Learn: ' + weekLabel(+d.w)); break; }
-    case 'asg-practice': { const ids = OB.ASG.filter(q => q.week === +d.w).map(q => q.id); startPractice(ids, 'Practice: ' + weekLabel(+d.w), 'asgpractice', { week: +d.w }); break; }
-    case 'asg-practice-new': { const ids = OB.ASG.filter(q => q.week === +d.w && OB.status(q.id) === 'new').map(q => q.id); if (!ids.length) { toast('Every question in this assignment has been attempted.'); render(); break; } startPractice(ids, 'Practice (unattempted): ' + weekLabel(+d.w), 'asgpractice', { week: +d.w }); break; }
-    case 'asg-retry': { const ids = OB.retryList({ week: +d.w }); startPractice(ids, 'Retry mistakes: ' + weekLabel(+d.w), 'retry'); break; }
+    case 'asg-practice': { const ids = OB.ASG.filter(q => q.week === +d.w).map(q => q.id); startPractice(OB.shuffle(ids), 'Practice: ' + weekLabel(+d.w), 'asgpractice', { week: +d.w }); break; }
+    case 'asg-practice-new': { const ids = OB.ASG.filter(q => q.week === +d.w && OB.status(q.id) === 'new').map(q => q.id); if (!ids.length) { toast('Every question in this assignment has been attempted.'); render(); break; } startPractice(OB.shuffle(ids), 'Practice (unattempted): ' + weekLabel(+d.w), 'asgpractice', { week: +d.w }); break; }
+    case 'asg-retry': { const ids = OB.retryList({ week: +d.w }); startPractice(OB.shuffle(ids), 'Retry mistakes: ' + weekLabel(+d.w), 'retry'); break; }
     case 'asg-test': {
       const w = +d.w; const ids = OB.ASG.filter(q => q.week === w).map(q => q.id);
       if (!(await askConfirm(`Start the ${weekLabel(w)} mastery test? All ${ids.length} questions are shown without answers. Your target is 90% or more.`, 'Start test'))) break;
-      startSession({ kind: 'asgtest', label: 'Assignment mastery test: ' + weekLabel(w), mode: 'exam', qids: ids, week: w, partial: S().settings.partial }); break;
+      startSession({ kind: 'asgtest', label: 'Assignment mastery test: ' + weekLabel(w), mode: 'exam', qids: OB.shuffle(ids), week: w, partial: S().settings.partial }); break;
     }
     case 'pf-all': pf.topics = OB.DATA.topics.map(t => t.id); render(); break;
     case 'pf-none': pf.topics = []; render(); break;
@@ -1275,13 +1275,13 @@ async function onClick(e) {
     }
     case 'retry-start': {
       const ids = OB.retryList({ src: rf.src || undefined, topic: rf.topic || undefined, week: rf.week === '' ? undefined : +rf.week, recent: rf.scope === 'recent', n: rf.n });
-      startPractice(ids, 'Retry wrong answers', 'retry'); break;
+      startPractice(OB.shuffle(ids), 'Retry wrong answers', 'retry'); break;
     }
     case 'retry-from-test': { const t = S().tests.find(x => x.id === d.id); const ids = t.items.filter(i => i.st === 'w' || i.st === 'p').map(i => i.id); startPractice(ids, 'Retry mistakes from ' + t.label, 'retry'); break; }
     case 'bookmark-q': { const r = OB.R(d.id); r.bm = r.bm ? 0 : 1; OB.save(); render(); break; }
     case 'learn-one': startLearn([d.id], 0, 'Revisit question'); break;
     case 'bm-learn': startLearn(OB.ALL.filter(q => S().q[q.id] && S().q[q.id].bm).map(q => q.id), 0, 'Learn: bookmarked'); break;
-    case 'bm-practice': startPractice(OB.ALL.filter(q => S().q[q.id] && S().q[q.id].bm).map(q => q.id), 'Practice: bookmarked', 'practice'); break;
+    case 'bm-practice': startPractice(OB.shuffle(OB.ALL.filter(q => S().q[q.id] && S().q[q.id].bm).map(q => q.id)), 'Practice: bookmarked', 'practice'); break;
     case 'export': download('nptel-ob-progress-' + new Date().toISOString().slice(0, 10) + '.json', OB.exportJSON(), 'application/json'); toast('Progress file downloaded. Keep it somewhere safe.'); render(); break;
     case 'csv': download('nptel-ob-results-' + new Date().toISOString().slice(0, 10) + '.csv', OB.exportCSV(), 'text/csv'); break;
     case 'reset':
