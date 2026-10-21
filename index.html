@@ -1224,7 +1224,7 @@ async function onClick(e) {
     case 'bookmark': { const r = OB.R(curQ().id); r.bm = r.bm ? 0 : 1; OB.save(); render(); break; }
     case 'needrev': { const r = OB.R(curQ().id); r.fl = r.fl ? 0 : 1; OB.save(); render(); break; }
     case 'clear': delete sess.ans[curQ().id]; afterAnswer(); break;
-    case 'check': { const id = curQ().id; if (!OB.isAnswered(sess.ans[id])) { const m = $('#chkmsg'); if (m) m.textContent = 'Please select or type an answer first.'; break; } OB.checkAnswer(sess, id); OB.save(); render(); break; }
+    case 'check': { const id = curQ().id; if (!OB.isAnswered(sess.ans[id])) { const m = $('#chkmsg'); if (m) m.textContent = 'Please select or type an answer first.'; break; } const g = OB.checkAnswer(sess, id); OB.save(); autoWait = g.st === 'w' || g.st === 'p'; render(); if (g.st === 'c') scheduleAdvance(600); else if (autoWait) scheduleAdvance(10000); break; }
     case 'saveRubric': {
       const checks = readChecks(el.closest('.rubric')); const id = d.id;
       if (view.name === 'results') { const t = S().tests.find(x => x.id === view.id); OB.reviewInResults(t, id, checks); OB.save(); render(); }
