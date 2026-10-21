@@ -1062,7 +1062,7 @@ function viewPractice() {
    <fieldset><legend>Difficulty</legend>${[['E', 'Easy'], ['M', 'Moderate'], ['H', 'Difficult / twisted']].map(([k, l]) => chkbox('diffs', k, l, pf.diffs.includes(k))).join('')}</fieldset>
    <fieldset><legend>Question type</legend>${types.map(([k, l]) => chkbox('types', k, l, pf.types.includes(k))).join('')}</fieldset>
    <fieldset><legend>Status</legend>${[['all', 'All'], ['unseen', 'Unseen only'], ['wrong', 'Previously incorrect (active)'], ['notmastered', 'Not yet mastered']].map(([k, l]) => `<label class="cb"><input type="radio" name="pfstatus" data-pf="status" value="${k}" ${pf.status === k ? 'checked' : ''}> ${l}</label>`).join('')}</fieldset>
-   <label class="cb">Number of questions <input type="number" min="1" max="100" value="${pf.n}" data-pf="n" class="numin"></label>
+   <label class="cb">Number of questions <input type="number" min="1" max="600" value="${pf.n}" data-pf="n" class="numin"> <button class="linkbtn" data-act="pf-allq">use all matching</button></label>
    <p><b>${pool.length}</b> questions match.</p><button class="btn primary lg" data-act="pf-start" ${pool.length ? '' : 'disabled'}>Start practice</button></div></section>`;
 }
 
@@ -1258,6 +1258,7 @@ async function onClick(e) {
       startSession({ kind: 'asgtest', label: 'Assignment mastery test: ' + weekLabel(w), mode: 'exam', qids: OB.shuffle(ids), week: w, partial: S().settings.partial }); break;
     }
     case 'pf-all': pf.topics = OB.DATA.topics.map(t => t.id); render(); break;
+    case 'pf-allq': pf.n = Math.max(1, OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }).length); render(); break;
     case 'pf-none': pf.topics = []; render(); break;
     case 'pf-start': { const pool = OB.filterPool({ cats: pf.cats, topics: pf.topics, diffs: pf.diffs, types: pf.types, status: pf.status }); const ids = OB.shuffle(pool).slice(0, pf.n).map(q => q.id); startPractice(ids, 'Practice: new questions', 'practice'); break; }
     case 'smart': { const ids = OB.smartPractice(pf.n); startPractice(ids, 'Smart adaptive practice', 'practice'); break; }
@@ -1298,7 +1299,7 @@ function onChange(e) {
   if (t.dataset.pf) {
     const g = t.dataset.pf;
     if (g === 'status') pf.status = t.value;
-    else if (g === 'n') pf.n = Math.max(1, Math.min(100, parseInt(t.value, 10) || 20));
+    else if (g === 'n') pf.n = Math.max(1, Math.min(600, parseInt(t.value, 10) || 20));
     else { const arr = pf[g]; const k = arr.indexOf(t.value); if (t.checked && k < 0) arr.push(t.value); if (!t.checked && k >= 0) arr.splice(k, 1); }
     render(); return;
   }
