@@ -117,7 +117,7 @@ const OB = (function () {
   const CATS = { asg: 'Original NPTEL assignment questions', newA: 'New questions on assignment concepts', newB: 'New questions on other syllabus concepts' };
   const DIFFN = { E: 'Easy', M: 'Moderate', H: 'Difficult' };
   const TYPEN = { mcq: 'Single answer', tf: 'True / False', msq: 'Multiple answer', match: 'Match the following', fill: 'Fill in the blank', short: 'Short answer', ar: 'Assertion-Reason' };
-  const SECN = { 0: 'Assignment', 1: 'Section 1 - Standard MCQs', 2: 'Section 2 - Twisted / application MCQs', 3: 'Section 3 - Multiple-answer', 4: 'Section 4 - Mixed formats' };
+  const SECN = { 0: 'Assignment', 1: 'Section 1 - Standard MCQs', 2: 'Section 2 - Twisted / application MCQs', 3: 'Section 3 - Multiple-answer', 4: 'Section 4 - Mixed formats', 5: 'Original assignment questions' };
 
   /* ---------- question registry ---------- */
   const Q = {};
@@ -1171,6 +1171,9 @@ function viewMock() {
   <li>Short descriptive answers are self-reviewed against a rubric; until reviewed they are excluded from the score denominator.</li></ul>
   <p class="small">If you have NPTEL's official marking scheme, treat these numbers as practice defaults only.</p>
   <button class="btn primary lg" data-act="mock-start">Start mock exam (80 questions)</button></div>
+  <div class="card"><h2>Mock with ALL questions</h2><p>Every new question in the bank (${OB.NEW.length}), grouped into the four sections, in random order within each section. No time limit.</p>
+  <label class="cb"><input type="checkbox" id="mockall-asg"> Also include all ${OB.ASG.length} original assignment questions as a fifth section</label><br>
+  <button class="btn primary lg" data-act="mock-all">Start mock with all questions</button></div>
   <div class="card"><h2>Previous mock exams</h2>${mocks.length ? '<table class="tbl"><tr><th>Date</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Time</th><th></th></tr>' + mocks.map(t => { const sm = OB.summarize(t); const sc = k => (sm.bySec[k] ? sm.bySec[k].m.toFixed(1) + '/' + sm.bySec[k].scored : '-'); return `<tr><td>${fmtDate(t.ended)}</td><td><b>${sm.pct.toFixed(1)}%</b> (${sm.marks.toFixed(1)}/${sm.scoredMax})</td><td>${sc(1)}</td><td>${sc(2)}</td><td>${sc(3)}</td><td>${sc(4)}</td><td>${fmtDur(t.durSec)}</td><td><button class="btn sm" data-act="open-result" data-id="${t.id}">Report</button></td></tr>`; }).join('') + '</table>' : '<p class="small">No mock exams yet.</p>'}</div></section>`;
 }
 
@@ -1378,6 +1381,15 @@ async function onClick(e) {
       flat.forEach(id => { S().mockUse[id] = (S().mockUse[id] || 0) + 1; });
       S().mockCount++;
       startSession({ kind: 'mock', label: 'Full mock exam #' + S().mockCount, mode: ($('#mockfb') && $('#mockfb').checked) ? 'practice' : 'exam', qids: flat, secs: secs.map(s => s.length), timerMin: mins, partial: S().settings.partial });
+      break;
+    }
+    case 'mock-all': {
+      const secs = [1, 2, 3, 4].map(s => OB.shuffle(OB.NEW.filter(q => q.sec === s)).map(q => q.id));
+      if ($('#mockall-asg') && $('#mockall-asg').checked) secs.push(OB.shuffle(OB.ASG.map(q => q.id)));
+      const flat = secs.flat();
+      flat.forEach(id => { S().mockUse[id] = (S().mockUse[id] || 0) + 1; });
+      S().mockCount++;
+      startSession({ kind: 'mock', label: 'Full-bank mock #' + S().mockCount + ' (' + flat.length + ' questions)', mode: ($('#mockfb') && $('#mockfb').checked) ? 'practice' : 'exam', qids: flat, secs: secs.map(s => s.length), timerMin: 0, partial: S().settings.partial });
       break;
     }
     case 'retry-start': {
