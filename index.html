@@ -1164,7 +1164,7 @@ function viewMock() {
    <tr><td>3</td><td>Multiple-answer questions</td><td>20</td><td>${poolOK[2]}</td></tr>
    <tr><td>4</td><td>Mixed: true/false, match, assertion-reason, fill-in-the-blank, short answer, MCQ, multiple-answer</td><td>20</td><td>${poolOK[3]}</td></tr></table>
   <p class="small">Questions are drawn from the least-used part of each pool so consecutive mocks do not repeat. Answers stay hidden until you submit.</p>
-  <label class="cb">Time limit (minutes, 0 = untimed) <input type="number" id="mocktime" min="0" max="600" value="${st.timerMin}" class="numin"></label>
+  <label class="cb"><input type="checkbox" id="mockfb" checked> Show right/wrong after each answer (practice style). Untick for real exam conditions with answers hidden until the end.</label><br><label class="cb">Time limit (minutes, 0 = untimed) <input type="number" id="mocktime" min="0" max="600" value="${st.timerMin}" class="numin"></label>
   <h3>Scoring rules (practice defaults)</h3>
   <ul><li>1 mark per question, no negative marking, unanswered = 0.</li><li>Multiple-answer: full mark only for the exact correct set; any wrong extra option means no full marks.</li>
   <li>Partial credit is <b>${st.partial ? 'ON' : 'OFF'}</b>${st.partial ? ': marks = max(0, (correct selected - incorrect selected) / total correct options); match-the-following = correct pairs / total pairs.' : ' (change in Backup &amp; settings).'}</li>
@@ -1377,7 +1377,7 @@ async function onClick(e) {
       const secs = OB.buildMockIds(); const flat = secs.flat();
       flat.forEach(id => { S().mockUse[id] = (S().mockUse[id] || 0) + 1; });
       S().mockCount++;
-      startSession({ kind: 'mock', label: 'Full mock exam #' + S().mockCount, mode: 'exam', qids: flat, secs: secs.map(s => s.length), timerMin: mins, partial: S().settings.partial });
+      startSession({ kind: 'mock', label: 'Full mock exam #' + S().mockCount, mode: ($('#mockfb') && $('#mockfb').checked) ? 'practice' : 'exam', qids: flat, secs: secs.map(s => s.length), timerMin: mins, partial: S().settings.partial });
       break;
     }
     case 'retry-start': {
