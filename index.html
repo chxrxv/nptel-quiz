@@ -1172,7 +1172,7 @@ function viewMock() {
   <p class="small">If you have NPTEL's official marking scheme, treat these numbers as practice defaults only.</p>
   <button class="btn primary lg" data-act="mock-start">Start mock exam (80 questions)</button></div>
   <div class="card"><h2>Mock with ALL questions</h2><p>Every new question in the bank (${OB.NEW.length}), grouped into the four sections, in random order within each section. No time limit.</p>
-  <label class="cb"><input type="checkbox" id="mockall-asg"> Also include all ${OB.ASG.length} original assignment questions as a fifth section</label><br>
+  <label class="cb"><input type="checkbox" id="mockall-asg" checked> Also include all ${OB.ASG.length} original assignment questions as a fifth section</label><br>
   <button class="btn primary lg" data-act="mock-all">Start mock with all questions</button></div>
   <div class="card"><h2>Previous mock exams</h2>${mocks.length ? '<table class="tbl"><tr><th>Date</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Time</th><th></th></tr>' + mocks.map(t => { const sm = OB.summarize(t); const sc = k => (sm.bySec[k] ? sm.bySec[k].m.toFixed(1) + '/' + sm.bySec[k].scored : '-'); return `<tr><td>${fmtDate(t.ended)}</td><td><b>${sm.pct.toFixed(1)}%</b> (${sm.marks.toFixed(1)}/${sm.scoredMax})</td><td>${sc(1)}</td><td>${sc(2)}</td><td>${sc(3)}</td><td>${sc(4)}</td><td>${fmtDur(t.durSec)}</td><td><button class="btn sm" data-act="open-result" data-id="${t.id}">Report</button></td></tr>`; }).join('') + '</table>' : '<p class="small">No mock exams yet.</p>'}</div></section>`;
 }
