@@ -1301,7 +1301,7 @@ async function onClick(e) {
       if (el.dataset.locked) return; const q = curQ(); const i = +d.i;
       if (sess.mode === 'practice' && (q.type === 'mcq' || q.type === 'tf') && !sess.checked[q.id]) {
         sess.ans[q.id] = i; const g = OB.checkAnswer(sess, q.id); OB.save();
-        autoWait = g.st !== 'c'; render(); scheduleAdvance(g.st === 'c' ? 300 : 10000); break;
+        autoWait = g.st !== 'c'; render(); scheduleAdvance(g.st === 'c' ? 300 : 5000); break;
       }
       if (q.type === 'msq') { const a = Array.isArray(sess.ans[q.id]) ? sess.ans[q.id].slice() : []; const k = a.indexOf(i); if (k >= 0) a.splice(k, 1); else a.push(i); a.sort((x, y) => x - y); sess.ans[q.id] = a; }
       else sess.ans[q.id] = i;
@@ -1318,8 +1318,8 @@ async function onClick(e) {
     case 'clear': delete sess.ans[curQ().id]; afterAnswer(); break;
     case 'giveup': { // reveal the answer; counts as an incorrect attempt so it comes back for revision
       const id = curQ().id; if (!sess.checked[id]) { sess.checked[id] = { st: 'w', m: 0 }; if (!sess.applied[id]) { OB.recordAttempt(id, false, OB.isAnswered(sess.ans[id]) ? sess.ans[id] : null); sess.applied[id] = 1; } OB.save(); }
-      autoWait = true; render(); scheduleAdvance(10000); break; }
-    case 'check': { const id = curQ().id; if (!OB.isAnswered(sess.ans[id])) { const m = $('#chkmsg'); if (m) m.textContent = 'Please select or type an answer first.'; break; } const g = OB.checkAnswer(sess, id); OB.save(); autoWait = g.st === 'w' || g.st === 'p'; render(); if (g.st === 'c') scheduleAdvance(600); else if (autoWait) scheduleAdvance(10000); break; }
+      autoWait = true; render(); scheduleAdvance(5000); break; }
+    case 'check': { const id = curQ().id; if (!OB.isAnswered(sess.ans[id])) { const m = $('#chkmsg'); if (m) m.textContent = 'Please select or type an answer first.'; break; } const g = OB.checkAnswer(sess, id); OB.save(); autoWait = g.st === 'w' || g.st === 'p'; render(); if (g.st === 'c') scheduleAdvance(300); else if (autoWait) scheduleAdvance(5000); break; }
     case 'saveRubric': {
       const checks = readChecks(el.closest('.rubric')); const id = d.id;
       if (view.name === 'results') { const t = S().tests.find(x => x.id === view.id); OB.reviewInResults(t, id, checks); OB.save(); render(); }
