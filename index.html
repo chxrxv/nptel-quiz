@@ -871,7 +871,7 @@ function viewPlay() {
   const modeLabel = learn ? 'Learn mode (not scored)' : exam ? 'Exam mode' : 'Practice mode';
   let resultBanner = '';
   if (!exam && !learn && chk) {
-    resultBanner = chk.st === 'c' ? '<div class="banner good" role="status">Correct</div>' : chk.st === 'p' ? `<div class="banner warn" role="status">Partially correct (${chk.m} marks) - counted as incorrect for mastery.</div>` : chk.st === 'r' ? '<div class="banner warn" role="status">Self-review required (descriptive answer).</div>' : '<div class="banner bad" role="status">Incorrect - saved to your wrong-answer list. Read the explanation, then retry it later.</div>';
+    resultBanner = chk.st === 'c' ? '<div class="banner good" role="status">Correct</div>' : chk.st === 'p' ? `<div class="banner warn" role="status">Partially correct (${chk.m} marks) - counted as incorrect for mastery.</div>` : (chk.st === 'w' && q.type === 'msq' && Array.isArray(s.ans[id]) && s.ans[id].some(i => q.ans.includes(i))) ? '<div class="banner warn" role="status">Partially right - you chose some of the correct options, but not exactly the right set. It is counted as incorrect so it comes back for revision.</div>' : chk.st === 'r' ? '<div class="banner warn" role="status">Self-review required (descriptive answer).</div>' : '<div class="banner bad" role="status">Incorrect - saved to your wrong-answer list. Read the explanation, then retry it later.</div>';
   }
   const timer = s.endsAt ? `<span class="timer" id="timer" aria-live="off" title="Time remaining">${fmtClock(s.endsAt - Date.now())}</span>` : '';
   const prog = (s.idx + 1) / s.qids.length;
